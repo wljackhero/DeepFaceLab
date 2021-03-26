@@ -1,4 +1,5 @@
-﻿import sys
+﻿import os
+import sys
 import traceback
 import queue
 import threading
@@ -26,6 +27,7 @@ def trainerThread (s2c, c2s, e,
                     silent_start=False,
                     execute_programs = None,
                     debug=False,
+                    dump_ckpt=False,
                     **kwargs):
     while True:
         try:
@@ -43,7 +45,7 @@ def trainerThread (s2c, c2s, e,
                 saved_models_path.mkdir(exist_ok=True, parents=True)
 
             model = models.import_model(model_class_name)(
-                        is_training=True,
+                        is_training=not dump_ckpt,
                         saved_models_path=saved_models_path,
                         training_data_src_path=training_data_src_path,
                         training_data_dst_path=training_data_dst_path,
@@ -54,9 +56,13 @@ def trainerThread (s2c, c2s, e,
                         force_gpu_idxs=force_gpu_idxs,
                         cpu_only=cpu_only,
                         silent_start=silent_start,
-                        debug=debug,
-                        )
+                        debug=debug)
 
+            if dump_ckpt:
+                e.set()
+                model.dump_ckpt()
+                break
+                
             is_reached_goal = model.is_reached_iter_goal()
 
             shared_state = { 'after_save' : False }
@@ -119,6 +125,12 @@ def trainerThread (s2c, c2s, e,
                             io.log_info("")
                             io.log_info("Trying to do the first iteration. If an error occurs, reduce the model parameters.")
                             io.log_info("")
+                            
+                            if sys.platform[0:3] == 'win':
+                                io.log_info("!!!")
+                                io.log_info("Windows 10 users IMPORTANT notice. You should set this setting in order to work correctly.")
+                                io.log_info("https://i.imgur.com/B7cmDCB.jpg")
+                                io.log_info("!!!")
 
                         iter, iter_time = model.train_one_iter()
 
